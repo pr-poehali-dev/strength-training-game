@@ -43,31 +43,64 @@ interface BattleLog {
   damage: number;
 }
 
-const Index = () => {
-  const [player, setPlayer] = useState<PlayerStats>({
-    level: 1,
-    strength: 10,
-    experience: 0,
-    maxExperience: 100,
-    coins: 50,
-    wins: 0,
-    losses: 0,
-    nickname: 'Игрок'
-  });
+const STORAGE_KEY = 'power-arena-save';
 
-  const [pet, setPet] = useState<Pet>({
-    name: 'Драко',
-    level: 1,
-    experience: 0,
-    maxExperience: 50,
-    power: 5
-  });
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const saveToStorage = <T,>(key: string, value: T) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error('Failed to save:', e);
+  }
+};
+
+const Index = () => {
+  const [player, setPlayer] = useState<PlayerStats>(() => 
+    loadFromStorage(`${STORAGE_KEY}-player`, {
+      level: 1,
+      strength: 10,
+      experience: 0,
+      maxExperience: 100,
+      coins: 50,
+      wins: 0,
+      losses: 0,
+      nickname: 'Игрок'
+    })
+  );
+
+  const [pet, setPet] = useState<Pet>(() => 
+    loadFromStorage(`${STORAGE_KEY}-pet`, {
+      name: 'Драко',
+      level: 1,
+      experience: 0,
+      maxExperience: 50,
+      power: 5
+    })
+  );
+
+  const [achievements, setAchievements] = useState(() => 
+    loadFromStorage(`${STORAGE_KEY}-achievements`, [
+      { id: 1, name: 'Первые шаги', unlocked: true, icon: 'Award' },
+      { id: 2, name: 'Силач 10 lvl', unlocked: false, icon: 'Trophy' },
+      { id: 3, name: 'Мастер питомцев', unlocked: false, icon: 'Star' },
+      { id: 4, name: 'Первая победа', unlocked: false, icon: 'Swords' },
+      { id: 5, name: 'Непобедимый', unlocked: false, icon: 'Shield' }
+    ])
+  );
 
   const [isTraining, setIsTraining] = useState(false);
   const [isBattling, setIsBattling] = useState(false);
   const [showBattleDialog, setShowBattleDialog] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [showNicknameDialog, setShowNicknameDialog] = useState(true);
+  const [showNicknameDialog, setShowNicknameDialog] = useState(() => !loadFromStorage(`${STORAGE_KEY}-player`, { nickname: '' }).nickname || loadFromStorage(`${STORAGE_KEY}-player`, { nickname: '' }).nickname === 'Игрок');
   const [nicknameInput, setNicknameInput] = useState('');
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([]);
   const [playerHP, setPlayerHP] = useState(100);
@@ -75,30 +108,72 @@ const Index = () => {
   const [currentEnemy, setCurrentEnemy] = useState({ nickname: '', strength: 0 });
   const [battleResult, setBattleResult] = useState<'win' | 'loss' | null>(null);
 
-  const [leaderboard, setLeaderboard] = useState<LeaderboardPlayer[]>([
-    { nickname: 'DragonSlayer', level: 15, strength: 145, wins: 23, losses: 3, rank: 1 },
-    { nickname: 'ThunderFist', level: 13, strength: 128, wins: 19, losses: 5, rank: 2 },
-    { nickname: 'IronWill', level: 12, strength: 115, wins: 17, losses: 4, rank: 3 },
-    { nickname: 'ShadowKnight', level: 11, strength: 102, wins: 15, losses: 6, rank: 4 },
-    { nickname: 'StormBreaker', level: 10, strength: 95, wins: 14, losses: 7, rank: 5 },
-    { nickname: 'CrimsonBlade', level: 9, strength: 88, wins: 12, losses: 8, rank: 6 },
-    { nickname: 'SilverFang', level: 8, strength: 79, wins: 10, losses: 9, rank: 7 },
-    { nickname: 'GoldenLion', level: 7, strength: 68, wins: 9, losses: 10, rank: 8 }
-  ]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardPlayer[]>(() => 
+    loadFromStorage(`${STORAGE_KEY}-leaderboard`, [
+      { nickname: 'DragonSlayer', level: 15, strength: 145, wins: 23, losses: 3, rank: 1 },
+      { nickname: 'ThunderFist', level: 13, strength: 128, wins: 19, losses: 5, rank: 2 },
+      { nickname: 'IronWill', level: 12, strength: 115, wins: 17, losses: 4, rank: 3 },
+      { nickname: 'ShadowKnight', level: 11, strength: 102, wins: 15, losses: 6, rank: 4 },
+      { nickname: 'StormBreaker', level: 10, strength: 95, wins: 14, losses: 7, rank: 5 },
+      { nickname: 'CrimsonBlade', level: 9, strength: 88, wins: 12, losses: 8, rank: 6 },
+      { nickname: 'SilverFang', level: 8, strength: 79, wins: 10, losses: 9, rank: 7 },
+      { nickname: 'GoldenLion', level: 7, strength: 68, wins: 9, losses: 10, rank: 8 }
+    ])
+  );
 
-  const [achievements] = useState([
-    { id: 1, name: 'Первые шаги', unlocked: true, icon: 'Award' },
-    { id: 2, name: 'Силач 10 lvl', unlocked: false, icon: 'Trophy' },
-    { id: 3, name: 'Мастер питомцев', unlocked: false, icon: 'Star' },
-    { id: 4, name: 'Первая победа', unlocked: false, icon: 'Swords' },
-    { id: 5, name: 'Непобедимый', unlocked: false, icon: 'Shield' }
-  ]);
+
+
+  useEffect(() => {
+    saveToStorage(`${STORAGE_KEY}-player`, player);
+  }, [player]);
+
+  useEffect(() => {
+    saveToStorage(`${STORAGE_KEY}-pet`, pet);
+  }, [pet]);
+
+  useEffect(() => {
+    saveToStorage(`${STORAGE_KEY}-leaderboard`, leaderboard);
+  }, [leaderboard]);
+
+  useEffect(() => {
+    saveToStorage(`${STORAGE_KEY}-achievements`, achievements);
+  }, [achievements]);
 
   useEffect(() => {
     if (player.wins > 0 || player.losses > 0) {
       updateLeaderboard();
     }
   }, [player.wins, player.losses, player.strength]);
+
+  useEffect(() => {
+    checkAchievements();
+  }, [player, pet]);
+
+  const checkAchievements = () => {
+    const updates = [...achievements];
+    let hasUpdate = false;
+
+    if (player.level >= 10 && !updates[1].unlocked) {
+      updates[1].unlocked = true;
+      hasUpdate = true;
+    }
+    if (pet.level >= 5 && !updates[2].unlocked) {
+      updates[2].unlocked = true;
+      hasUpdate = true;
+    }
+    if (player.wins >= 1 && !updates[3].unlocked) {
+      updates[3].unlocked = true;
+      hasUpdate = true;
+    }
+    if (player.wins >= 10 && player.losses === 0 && !updates[4].unlocked) {
+      updates[4].unlocked = true;
+      hasUpdate = true;
+    }
+
+    if (hasUpdate) {
+      setAchievements(updates);
+    }
+  };
 
   const updateLeaderboard = () => {
     const playerInLeaderboard: LeaderboardPlayer = {
